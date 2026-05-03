@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Todo App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .task-enter { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div class="p-6 bg-gradient-to-r from-indigo-600 to-purple-600">
+            <h1 class="text-3xl font-bold text-white flex items-center gap-3">
+                <i class="fas fa-check-circle"></i>
+                Tasks
+            </h1>
+            <p class="text-indigo-100 mt-1" id="dateDisplay"></p>
+        </div>
+        
+        <div class="p-6">
+            <form id="todoForm" class="flex gap-2 mb-6">
+                <input 
+                    type="text" 
+                    id="todoInput" 
+                    placeholder="Add a new task..." 
+                    class="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-indigo-500 focus:outline-none transition-colors"
+                >
+                <button 
+                    type="submit" 
+                    class="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-3 rounded-xl font-semibold hover:opacity-90 transition-opacity"
+                >
+                    <i class="fas fa-plus"></i>
+                </button>
+            </form>
+
+            <div class="flex gap-2 mb-4">
+                <button class="filter-btn active px-4 py-2 rounded-lg text-sm font-medium bg-indigo-100 text-indigo-600" data-filter="all">All</button>
+                <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-filter="pending">Pending</button>
+                <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200" data-filter="completed">Done</button>
+            </div>
+
+            <ul id="todoList" class="space-y-3 max-h-80 overflow-y-auto"></ul>
+            
+            <div class="mt-4 pt-4 border-t border-gray-200 flex justify-between text-sm text-gray-500">
+                <span><span id="pendingCount">0</span> pending</span>
+                <button id="clearCompleted" class="text-red-500 hover:text-red-700 transition-colors">Clear completed</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('todoForm');
+        const input = document.getElementById('todoInput');
+        const list = document.getElementById('todoList');
+        const pendingCount = document.getElementById('pendingCount');
+        const clearCompleted = document.getElementById('clearCompleted');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        
+        let todos = JSON.parse(localStorage.getItem('todos')) || [];
+        let currentFilter = 'all';
+
+        document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('en-US',{ 
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+        });
+
+        function saveTodos() {
+            localStorage.setItem('todos', JSON.stringify(todos));
+        }
+
+        function renderTodos() {
+            list.innerHTML = '';
+            const filtered = currentFilter === 'all' ? todos : 
+                todos.filter(t => currentFilter === 'completed' ? t.completed : !t.completed);
+
+            filtered.forEach((todo, index) => {
+                const originalIndex = todos.indexOf(todo);
+                const li = document.createElement('li');
+                li.className = 'task-enter flex items-center gap-3 p-4 bg-gray-50 rounded-xl group';
+                if (todo.completed) li.classList.add('bg-green-50');
+                li.innerHTML = `
+                    <button onclick="toggleTodo(${originalIndex})" class="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${todo.completed ? 'bg-green-500 border-green-500' : 'border-gray-300 hover:border-indigo-500'}">
+                        ${todo.completed ? '<i class="fas fa-check text-white text-xs"></i>' : ''}
+                    </button>
+                    <span class="flex-1 ${todo.completed ? 'line-through text-gray-400' : 'text-gray-700'}">${todo.text}</span>
+                    <button onclick="deleteTodo(${originalIndex})" class="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-all">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                list.appendChild(li);
+            });
+
+            pendingCount.textContent = todos.filter(t => !t.completed).length;
+        }
+
+        function addTodo(text) {
+            todos.push({ text: text, completed: false, createdAt: Date.now() });
+            saveTodos();
+            renderTodos();
+        }
+
+        window.toggleTodo = function(index) {
+            todos[index].completed = !todos[index].completed;
+            saveTodos();
+            renderTodos();
+        };
+
+        window.deleteTodo = function(index) {
+            todos.splice(index, 1);
+            saveTodos();
+            renderTodos();
+        };
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if (text) {
+                addTodo(text);
+                input.value = '';
+            }
+        });
+
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => {
+                    b.classList.remove('active', 'bg-indigo-100', 'text-indigo-600');
+                    b.classList.add('bg-gray-100', 'text-gray-600');
+                });
+                btn.classList.add('active', 'bg-indigo-100', 'text-indigo-600');
+                btn.classList.remove('bg-gray-100', 'text-gray-600');
+                currentFilter = btn.dataset.filter;
+                renderTodos();
+            });
+        });
+
+        clearCompleted.addEventListener('click', () => {
+            todos = todos.filter(t => !t.completed);
+            saveTodos();
+            renderTodos();
+        });
+
+        renderTodos();
+    </script>
+</body>
+</html>
